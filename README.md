@@ -1,6 +1,6 @@
 ![Intro](https://github.com/theamallalgi/shownamer/blob/main/dependencies/header.png?raw=true)
 # Shownamer - Media Renamer
-A lightweight Python CLI tool that renames TV show episode video files by fetching their actual episode titles.
+A lightweight Python CLI tool that renames TV show episode video files by fetching their actual episode titles. Movies are not supported, All TV Shows and Sitcoms are supported.
 
 >[!NOTE]
 > Fetches details and Names from [TVmaze](https://www.tvmaze.com/).
