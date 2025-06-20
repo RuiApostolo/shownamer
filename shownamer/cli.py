@@ -6,7 +6,7 @@ from collections import defaultdict
 
 # Default supported video extensions
 DEFAULT_EXTENSIONS = [".mkv", ".mp4", ".avi", ".mov", ".flv"]
-TOOL_VERSION = "1.1.0"
+TOOL_VERSION = "1.2.0"
 
 # Enhanced filename pattern
 FILENAME_PATTERN = re.compile(
