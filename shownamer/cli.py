@@ -4,32 +4,35 @@ import requests
 import argparse
 from collections import defaultdict
 
-# Default supported video extensions
 DEFAULT_EXTENSIONS = [".mkv", ".mp4", ".avi", ".mov", ".flv"]
-TOOL_VERSION = "1.2.0"
+TOOL_VERSION = "1.2.1"  # Bumped version for the fix
 
-# Enhanced filename pattern
 FILENAME_PATTERN = re.compile(
     r"^(?P<show>.+?)[\s._-]*[Ss]?(?P<season>\d{1,2})?[Ee](?P<episode>\d{2})",
     re.IGNORECASE,
 )
 
-# Characters not allowed in filenames
 INVALID_CHARS = r'\/:*?"<>|'
 
 
 def sanitize_filename(name):
-    """Remove or replace characters that are not allowed in filenames."""
     return "".join(c if c not in INVALID_CHARS else "_" for c in name)
 
 
-def get_episode_title(show_name, season, episode):
+def get_episode_title(show_name, season, episode, verbose=False):
     """Query TVmaze API for the episode title."""
+    clean_show_name = re.sub(r"[\._\-]+", " ", show_name).strip()
+    if verbose:
+        print(f"[debug] Querying: '{clean_show_name}' (S{season}E{episode})")
+
     response = requests.get(
-        "https://api.tvmaze.com/singlesearch/shows", params={"q": show_name}
+        "https://api.tvmaze.com/singlesearch/shows", params={"q": clean_show_name}
     )
     if response.status_code != 200:
+        if verbose:
+            print(f"[fail] Show lookup failed for '{clean_show_name}'")
         return None
+
     show_data = response.json()
     show_id = show_data["id"]
 
@@ -38,12 +41,16 @@ def get_episode_title(show_name, season, episode):
         params={"season": season, "number": episode},
     )
     if episode_response.status_code != 200:
+        if verbose:
+            print(
+                f"[fail] Episode lookup failed for {clean_show_name} S{season}E{episode}"
+            )
         return None
+
     return episode_response.json()["name"]
 
 
 def list_series_summary(directory, extensions):
-    """List all detected show names with season/episode counts."""
     stats = defaultdict(lambda: defaultdict(int))
     for filename in os.listdir(directory):
         name, ext = os.path.splitext(filename)
@@ -85,7 +92,7 @@ def rename_files(directory, extensions, dry_run=False, verbose=False, format_str
         season = int(season_str) if season_str else 1
         episode = int(match.group("episode"))
 
-        episode_title = get_episode_title(show, season, episode)
+        episode_title = get_episode_title(show, season, episode, verbose)
         if not episode_title:
             print(f"[fail] {filename}: could not fetch episode title")
             continue
