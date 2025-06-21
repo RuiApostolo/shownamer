@@ -5,8 +5,9 @@ import argparse
 from collections import defaultdict
 
 DEFAULT_EXTENSIONS = [".mkv", ".mp4", ".avi", ".mov", ".flv"]
-TOOL_VERSION = "1.2.1"  # Bumped version for the fix
+TOOL_VERSION = "1.2.2"
 
+# Match: ShowName_S01E05, Show.Name-S1E5, Show Name S01E05 etc.
 FILENAME_PATTERN = re.compile(
     r"^(?P<show>.+?)[\s._-]*[Ss]?(?P<season>\d{1,2})?[Ee](?P<episode>\d{2})",
     re.IGNORECASE,
@@ -14,55 +15,82 @@ FILENAME_PATTERN = re.compile(
 
 INVALID_CHARS = r'\/:*?"<>|'
 
+# Cache to avoid repeated API calls
+show_cache = {}
+title_cache = {}
+
 
 def sanitize_filename(name):
+    """Replace illegal filename characters."""
     return "".join(c if c not in INVALID_CHARS else "_" for c in name)
 
 
-def get_episode_title(show_name, season, episode, verbose=False):
-    """Query TVmaze API for the episode title."""
-    clean_show_name = re.sub(r"[\._\-]+", " ", show_name).strip()
+def get_show_id_and_name(raw_show_name, verbose=False):
+    """Query show ID and canonical name from TVmaze API."""
+    if raw_show_name in show_cache:
+        return show_cache[raw_show_name]
+
+    clean_name = re.sub(r"[\._\-]+", " ", raw_show_name).strip()
+
     if verbose:
-        print(f"[debug] Querying: '{clean_show_name}' (S{season}E{episode})")
+        print(f"[query] Looking up: '{clean_name}'")
 
     response = requests.get(
-        "https://api.tvmaze.com/singlesearch/shows", params={"q": clean_show_name}
+        "https://api.tvmaze.com/singlesearch/shows", params={"q": clean_name}
     )
     if response.status_code != 200:
         if verbose:
-            print(f"[fail] Show lookup failed for '{clean_show_name}'")
-        return None
+            print(f"[fail] Failed to find show: {clean_name}")
+        return None, None
 
-    show_data = response.json()
-    show_id = show_data["id"]
+    data = response.json()
+    show_cache[raw_show_name] = (data["id"], data["name"])
+    return data["id"], data["name"]
 
-    episode_response = requests.get(
+
+def get_episode_title(show_id, season, episode, verbose=False):
+    """Query TVmaze API for episode title."""
+    cache_key = (show_id, season, episode)
+    if cache_key in title_cache:
+        return title_cache[cache_key]
+
+    response = requests.get(
         f"https://api.tvmaze.com/shows/{show_id}/episodebynumber",
         params={"season": season, "number": episode},
     )
-    if episode_response.status_code != 200:
+    if response.status_code != 200:
         if verbose:
-            print(
-                f"[fail] Episode lookup failed for {clean_show_name} S{season}E{episode}"
-            )
+            print(f"[fail] Failed to find episode S{season:02}E{episode:02}")
         return None
 
-    return episode_response.json()["name"]
+    title = response.json()["name"]
+    title_cache[cache_key] = title
+    return title
 
 
-def list_series_summary(directory, extensions):
+def list_series_summary(directory, extensions, verbose=False):
     stats = defaultdict(lambda: defaultdict(int))
+    canonical_names = {}
+
     for filename in os.listdir(directory):
         name, ext = os.path.splitext(filename)
         if ext.lower() not in extensions:
             continue
+
         match = FILENAME_PATTERN.match(name)
         if not match:
             continue
-        show = match.group("show").strip()
+
+        raw_show = match.group("show").strip()
         season_str = match.group("season")
         season = int(season_str) if season_str else 1
-        stats[show][season] += 1
+
+        show_id, canonical_name = get_show_id_and_name(raw_show, verbose)
+        if not show_id:
+            continue
+
+        canonical_names[raw_show] = canonical_name
+        stats[canonical_name][season] += 1
 
     if not stats:
         print("No recognizable TV show files found.")
@@ -84,17 +112,22 @@ def rename_files(directory, extensions, dry_run=False, verbose=False, format_str
         match = FILENAME_PATTERN.match(name)
         if not match:
             if verbose:
-                print(f"[skip] {filename}: doesn't match expected pattern")
+                print(f"[skip] {filename}: no pattern match")
             continue
 
-        show = match.group("show").strip()
+        raw_show = match.group("show").strip()
         season_str = match.group("season")
         season = int(season_str) if season_str else 1
         episode = int(match.group("episode"))
 
-        episode_title = get_episode_title(show, season, episode, verbose)
+        show_id, canonical_name = get_show_id_and_name(raw_show, verbose)
+        if not show_id:
+            print(f"[fail] {filename}: show not found")
+            continue
+
+        episode_title = get_episode_title(show_id, season, episode, verbose)
         if not episode_title:
-            print(f"[fail] {filename}: could not fetch episode title")
+            print(f"[fail] {filename}: episode not found")
             continue
 
         safe_title = sanitize_filename(episode_title)
@@ -104,7 +137,10 @@ def rename_files(directory, extensions, dry_run=False, verbose=False, format_str
 
         try:
             new_basename = format_str.format(
-                name=show, season=season, episode=episode, title=safe_title
+                name=canonical_name,
+                season=season,
+                episode=episode,
+                title=safe_title,
             )
         except KeyError as e:
             print(f"[fail] Invalid format string key: {e}")
@@ -127,39 +163,40 @@ def rename_files(directory, extensions, dry_run=False, verbose=False, format_str
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Rename TV episode files by fetching episode titles from TVmaze."
+        description="Rename TV episode files using episode titles from TVmaze."
     )
     parser.add_argument(
         "--dir",
         default=os.getcwd(),
-        help="Directory containing video files (default: current directory)",
+        help="Directory with video files (default: current directory)",
     )
     parser.add_argument(
         "--ext",
         nargs="*",
         default=DEFAULT_EXTENSIONS,
-        help="List of allowed video file extensions (default: common types)",
+        help="Allowed video file extensions (default: common types)",
     )
     parser.add_argument(
-        "--dry-run", action="store_true", help="Preview renaming without making changes"
+        "--dry-run",
+        action="store_true",
+        help="Preview changes without renaming files",
     )
     parser.add_argument(
-        "--verbose", action="store_true", help="Show skipped files and debug info"
+        "--verbose", action="store_true", help="Show debug and skip messages"
     )
+    parser.add_argument("--version", action="store_true", help="Show version and exit")
     parser.add_argument(
-        "--version", action="store_true", help="Show tool version and exit"
-    )
-    parser.add_argument(
-        "--name", action="store_true", help="List show names and episode counts"
+        "--name",
+        action="store_true",
+        help="List canonical show names and episode counts",
     )
     parser.add_argument(
         "--format",
         type=str,
-        help='Custom output format using {name}, {season}, {episode}, {title} (default: "{name} S{season:02}E{episode:02} - {title}")',
+        help="Custom format using {name}, {season}, {episode}, {title}",
     )
 
     args = parser.parse_args()
-
     extensions = [e if e.startswith(".") else "." + e for e in args.ext]
 
     if args.version:
@@ -167,7 +204,7 @@ def main():
         return
 
     if args.name:
-        list_series_summary(args.dir, extensions)
+        list_series_summary(args.dir, extensions, args.verbose)
         return
 
     rename_files(
