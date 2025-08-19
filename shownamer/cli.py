@@ -35,9 +35,16 @@ def get_show_id_and_name(raw_show_name, verbose=False):
     if verbose:
         print(f"[query] Looking up: '{clean_name}'")
 
-    response = requests.get(
-        "https://api.tvmaze.com/singlesearch/shows", params={"q": clean_name}
-    )
+    try:
+        response = requests.get(
+            "https://api.tvmaze.com/singlesearch/shows", params={"q": clean_name}
+        )
+        response.raise_for_status()  # Raise an exception for bad status codes
+    except requests.exceptions.RequestException as e:
+        if verbose:
+            print(f"[fail] Network error for show '{clean_name}': {e}")
+        return None, None
+
     if response.status_code != 200:
         if verbose:
             print(f"[fail] Failed to find show: {clean_name}")
@@ -54,10 +61,17 @@ def get_episode_title(show_id, season, episode, verbose=False):
     if cache_key in title_cache:
         return title_cache[cache_key]
 
-    response = requests.get(
-        f"https://api.tvmaze.com/shows/{show_id}/episodebynumber",
-        params={"season": season, "number": episode},
-    )
+    try:
+        response = requests.get(
+            f"https://api.tvmaze.com/shows/{show_id}/episodebynumber",
+            params={"season": season, "number": episode},
+        )
+        response.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        if verbose:
+            print(f"[fail] Network error for S{season:02}E{episode:02}: {e}")
+        return None
+
     if response.status_code != 200:
         if verbose:
             print(f"[fail] Failed to find episode S{season:02}E{episode:02}")
