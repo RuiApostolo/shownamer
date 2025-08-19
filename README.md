@@ -45,15 +45,16 @@ shownamer --help
 
 ## Available Flags
 
-| Flag        | Description                                                                           |
-| ----------- | ------------------------------------------------------------------------------------- |
-| `--dir`     | Directory to scan for files (default: current working directory)                      |
-| `--ext`     | File extensions to consider (default: `.mkv`, `.mp4`, `.avi`, `.mov`, `.flv`)         |
-| `--dry-run` | Show what would be renamed, without actually renaming any files                       |
-| `--verbose` | Show skipped files, errors, and debug output                                          |
-| `--name`    | List detected show names along with season and episode counts                         |
-| `--format`  | Custom rename format using placeholders: `{name}`, `{season}`, `{episode}`, `{title}` |
-| `--version` | Print the tool version and exit                                                       |
+| Flag                  | Description                                                                           |
+| --------------------- | ------------------------------------------------------------------------------------- |
+| `--dir`               | Directory to scan for files (default: current working directory)                      |
+| `--ext`               | File extensions to consider (default: `.mkv`, `.mp4`, `.avi`, `.mov`, `.flv`)         |
+| `--dry-run`           | Show what would be renamed, without actually renaming any files                       |
+| `--verbose`           | Show skipped files, errors, and debug output                                          |
+| `--name`              | List detected show names along with season and episode counts                         |
+| `--format FORMAT`     | Custom rename format using placeholders: `{name}`, `{season}`, `{episode}`, `{title}` |
+| `--subst REPLACEMENT` | Replace illegal characters with a specific character (excl: \ / : * ? " < > \| \0)    |
+| `--version`           | Print the tool version and exit                                                       |
 
 ### Example Usage
 
@@ -75,6 +76,10 @@ shownamer --ext mkv mp4 avi
 
 # Verbose mode (shows skipped files, debug info)
 shownamer --verbose
+
+# Replace an illegal character
+shownamer --subst "_" # replaces illegal characters with _
+shownamer --subst "'" # replaces illegal characters with '
 ```
 
 ## Filename Formats
