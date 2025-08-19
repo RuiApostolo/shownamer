@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="shownamer",
-    version="1.2.2",
+    version="1.3.0",
     author="Amal Lalgi",
     description="Rename TV show Media files with Respective episode Titles/Names.",
     long_description=open("README.md").read(),
