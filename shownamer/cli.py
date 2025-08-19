@@ -13,16 +13,19 @@ FILENAME_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
-INVALID_CHARS = r'\/:*?"<>|'
+INVALID_CHARS = r'\/:*?"<>|\0'
 
 # Cache to avoid repeated API calls
 show_cache = {}
 title_cache = {}
 
 
-def sanitize_filename(name):
-    """Replace illegal filename characters."""
-    return "".join(c if c not in INVALID_CHARS else "_" for c in name)
+def sanitize_filename(name, subst=None):
+    """Remove or replace illegal filename characters."""
+    if subst:
+        return "".join(c if c not in INVALID_CHARS else subst for c in name)
+    else:
+        return "".join(c for c in name if c not in INVALID_CHARS)
 
 
 def get_show_id_and_name(raw_show_name, verbose=False):
@@ -117,7 +120,7 @@ def list_series_summary(directory, extensions, verbose=False):
             print(f"    Season {season:02}: {count} episode(s)")
 
 
-def rename_files(directory, extensions, dry_run=False, verbose=False, format_str=None):
+def rename_files(directory, extensions, dry_run=False, verbose=False, format_str=None, subst=None):
     for filename in os.listdir(directory):
         name, ext = os.path.splitext(filename)
         if ext.lower() not in extensions:
@@ -144,14 +147,15 @@ def rename_files(directory, extensions, dry_run=False, verbose=False, format_str
             print(f"[fail] {filename}: episode not found")
             continue
 
-        safe_title = sanitize_filename(episode_title)
+        safe_title = sanitize_filename(episode_title, subst=subst)
+        safe_name = sanitize_filename(canonical_name, subst=subst)
 
         if not format_str:
             format_str = "{name} S{season:02}E{episode:02} - {title}"
 
         try:
             new_basename = format_str.format(
-                name=canonical_name,
+                name=safe_name,
                 season=season,
                 episode=episode,
                 title=safe_title,
@@ -209,9 +213,19 @@ def main():
         type=str,
         help="Custom format using {name}, {season}, {episode}, {title}",
     )
+    parser.add_argument(
+        "--subst",
+        type=str,
+        default=None,
+        help=r'Replace illegal characters with a specific character (unsupported: \ / : * ? " < > | \0)'
+    )
 
     args = parser.parse_args()
     extensions = [e if e.startswith(".") else "." + e for e in args.ext]
+
+    if args.subst and args.subst in INVALID_CHARS:
+        print(f"[fail] Invalid replacement character: '{args.subst}' is an illegal character.")
+        return
 
     if args.version:
         print(f"shownamer version {TOOL_VERSION}")
@@ -227,6 +241,7 @@ def main():
         dry_run=args.dry_run,
         verbose=args.verbose,
         format_str=args.format,
+        subst=args.subst,
     )
 
 
