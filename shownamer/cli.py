@@ -1,8 +1,9 @@
+import argparse
 import os
 import re
-import requests
-import argparse
 from collections import defaultdict
+
+import requests
 
 DEFAULT_EXTENSIONS = [".mkv", ".mp4", ".avi", ".mov", ".flv"]
 TOOL_VERSION = "1.2.2"
@@ -13,7 +14,7 @@ FILENAME_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
-INVALID_CHARS = r'\/:*?"<>|\0'
+INVALID_CHARS = r'\/:*?"<>|' + "\0"
 
 # Cache to avoid repeated API calls
 show_cache = {}
@@ -40,7 +41,9 @@ def get_show_id_and_name(raw_show_name, verbose=False):
 
     try:
         response = requests.get(
-            "https://api.tvmaze.com/singlesearch/shows", params={"q": clean_name}
+            "https://api.tvmaze.com/singlesearch/shows",
+            params={"q": clean_name},
+            timeout=30,
         )
         response.raise_for_status()  # Raise an exception for bad status codes
     except requests.exceptions.RequestException as e:
@@ -55,7 +58,7 @@ def get_show_id_and_name(raw_show_name, verbose=False):
 
     data = response.json()
     show_cache[raw_show_name] = (data["id"], data["name"])
-    return data["id"], data["name"]
+    return data["id"], data["name"], data["premiered"][:4]
 
 
 def get_episode_title(show_id, season, episode, verbose=False):
@@ -68,6 +71,7 @@ def get_episode_title(show_id, season, episode, verbose=False):
         response = requests.get(
             f"https://api.tvmaze.com/shows/{show_id}/episodebynumber",
             params={"season": season, "number": episode},
+            timeout=30,
         )
         response.raise_for_status()
     except requests.exceptions.RequestException as e:
@@ -102,7 +106,7 @@ def list_series_summary(directory, extensions, verbose=False):
         season_str = match.group("season")
         season = int(season_str) if season_str else 1
 
-        show_id, canonical_name = get_show_id_and_name(raw_show, verbose)
+        show_id, canonical_name, year = get_show_id_and_name(raw_show, verbose)
         if not show_id:
             continue
 
@@ -115,7 +119,7 @@ def list_series_summary(directory, extensions, verbose=False):
 
     print("Detected Series Summary:")
     for show, seasons in stats.items():
-        print(f"  {show}:")
+        print(f"  {show} ({year}):")
         for season, count in sorted(seasons.items()):
             print(f"    Season {season:02}: {count} episode(s)")
 
@@ -137,7 +141,7 @@ def rename_files(directory, extensions, dry_run=False, verbose=False, format_str
         season = int(season_str) if season_str else 1
         episode = int(match.group("episode"))
 
-        show_id, canonical_name = get_show_id_and_name(raw_show, verbose)
+        show_id, canonical_name, show_year = get_show_id_and_name(raw_show, verbose)
         if not show_id:
             print(f"[fail] {filename}: show not found")
             continue
@@ -159,6 +163,7 @@ def rename_files(directory, extensions, dry_run=False, verbose=False, format_str
                 season=season,
                 episode=episode,
                 title=safe_title,
+                year=show_year,
             )
         except KeyError as e:
             print(f"[fail] Invalid format string key: {e}")
@@ -199,9 +204,7 @@ def main():
         action="store_true",
         help="Preview changes without renaming files",
     )
-    parser.add_argument(
-        "--verbose", action="store_true", help="Show debug and skip messages"
-    )
+    parser.add_argument("--verbose", action="store_true", help="Show debug and skip messages")
     parser.add_argument("--version", action="store_true", help="Show version and exit")
     parser.add_argument(
         "--name",
@@ -211,13 +214,13 @@ def main():
     parser.add_argument(
         "--format",
         type=str,
-        help="Custom format using {name}, {season}, {episode}, {title}",
+        help="Custom format using {name}, {season}, {episode}, {title}, and {year}",
     )
     parser.add_argument(
         "--subst",
         type=str,
         default=None,
-        help=r'Replace illegal characters with a specific character (unsupported: \ / : * ? " < > | \0)'
+        help=r'Replace illegal characters with a specific character (unsupported: \ / : * ? " < > | \0)',
     )
 
     args = parser.parse_args()
