@@ -189,34 +189,40 @@ def main():
         description="Rename TV episode files using episode titles from TVmaze."
     )
     parser.add_argument(
+        "-d",
         "--dir",
         default=os.getcwd(),
         help="Directory with video files (default: current directory)",
     )
     parser.add_argument(
+        "-e",
         "--ext",
         nargs="*",
         default=DEFAULT_EXTENSIONS,
         help="Allowed video file extensions (default: common types)",
     )
     parser.add_argument(
+        "-dr",
         "--dry-run",
         action="store_true",
         help="Preview changes without renaming files",
     )
-    parser.add_argument("--verbose", action="store_true", help="Show debug and skip messages")
-    parser.add_argument("--version", action="store_true", help="Show version and exit")
+    parser.add_argument("-V", "--verbose", action="store_true", help="Show debug and skip messages")
+    parser.add_argument("-v", "--version", action="store_true", help="Show version and exit")
     parser.add_argument(
+        "-n",
         "--name",
         action="store_true",
         help="List canonical show names and episode counts",
     )
     parser.add_argument(
+        "-f",
         "--format",
         type=str,
         help="Custom format using {name}, {season}, {episode}, {title}, and {year}",
     )
     parser.add_argument(
+        "-s",
         "--subst",
         type=str,
         default=None,
