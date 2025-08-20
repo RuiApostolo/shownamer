@@ -2,10 +2,10 @@
 
 # Shownamer - Media Renamer
 
-A lightweight Python CLI tool that renames TV show episode video files by fetching their actual episode titles. Movies are not supported, All TV Shows and Sitcoms are supported.
+A lightweight Python CLI tool that renames TV show episodes and Movie files by fetching their actual episode titles. All TV Shows and Sitcoms and Movies are supported.
 
 > [!NOTE]
-> Fetches details and Names from [TVmaze](https://www.tvmaze.com/).
+> Fetches details and names from [TVmaze](https://www.tvmaze.com/) and [IMDBPy](https://github.com/MaximShidlovski23/imdbpy).
 
 ## Features
 
@@ -14,9 +14,12 @@ A lightweight Python CLI tool that renames TV show episode video files by fetchi
   ```
   Before: Malcolm in the Middle S01E10.mkv
   After: Malcolm in the Middle S01E10 - Stock Car Races.mkv
+
+  Before: the.green.knight.720p.mkv
+  After: The Green Knight (2021).mkv
   ```
 
-- Fetches episode titles using the free TVmaze API.
+- Fetches episode titles, release years etc.
 - Cleans illegal filename characters automatically.
 - CLI flags for:
   - Custom directory
@@ -48,6 +51,7 @@ shownamer --help
 | Flag                  | Description                                                                           |
 | --------------------- | ------------------------------------------------------------------------------------- |
 | `--dir`               | Directory to scan for files (default: current working directory)                      |
+| `--movie`             | Rename Movie files (skips everything else)                                            |
 | `--ext`               | File extensions to consider (default: `.mkv`, `.mp4`, `.avi`, `.mov`, `.flv`)         |
 | `--dry-run`           | Show what would be renamed, without actually renaming any files                       |
 | `--verbose`           | Show skipped files, errors, and debug output                                          |
@@ -71,6 +75,9 @@ shownamer --dry-run
 # Show detected show names with season/episode stats
 shownamer --name
 
+# Rename movie files only
+shownamer --movie
+
 # Limit to specific extensions
 shownamer --ext mkv mp4 avi
 
@@ -85,11 +92,11 @@ shownamer --subst "'" # replaces illegal characters with '
 ## Filename Formats
 
 ```sh
-{name} # show name
-{season} # season number (as integer)
-{episode} # episode number (as integer)
-{title} # episode title (sanitized for filesystem)
-{year} # year the show first aired
+{name} # show/movie name
+{season} # season number (as integer) (not available for movie tag)
+{episode} # episode number (as integer) (not available for movie tag)
+{title} # episode title (sanitized for filesystem) (not available for movie tag)
+{year} # year the show first aired/movie released
 ```
 
 ```sh
@@ -109,6 +116,8 @@ Malcolm_in_the_Middle_S01E10.avi
 Malcolm-in-the-Middle-E10.mp4
 Malcolm.in.the.Middle.S02E03.mkv
 TheOffice_E05.avi # No Season Specified, Defaults to Season One
+The Green Knight (2021).mkv
+Zack Snyder's Justice League (2021).mkv
 ```
 
 All of the following are supported:
