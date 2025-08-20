@@ -1,4 +1,4 @@
-![Intro](https://github.com/theamallalgi/shownamer/blob/main/dependencies/header.png?raw=true)
+![Intro](https://github.com/theamallalgi/shownamer/blob/main/docs/assets/header.png?raw=true)
 
 # Shownamer - Media Renamer
 
