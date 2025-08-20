@@ -1,18 +1,19 @@
+# INFO: Did you read the CONTRIBUTIONS.md file? Make sure you follow the guidelines bud!
+# INFO: That's all! Happy Coding!
+
 import argparse
 import os
 import re
 import json
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
-
 import requests
 from guessit import guessit
 from imdb import Cinemagoer
 
 DEFAULT_EXTENSIONS = [".mkv", ".mp4", ".avi", ".mov", ".flv"]
-TOOL_VERSION = "1.5.0"
+TOOL_VERSION = "2.0.0"
 
-# Match: ShowName_S01E05, Show.Name-S1E5, Show Name S01E05 etc.
 FILENAME_PATTERN = re.compile(
     r"^(?P<show>.+?)[\s._-]*[Ss]?(?P<season>\d{1,2})?[Ee](?P<episode>\d{2})",
     re.IGNORECASE,
@@ -21,10 +22,9 @@ FILENAME_PATTERN = re.compile(
 INVALID_CHARS = r'\/:*?"<>|' + "\0"
 CACHE_FILE = os.path.expanduser("~/.shownamer_cache.json")
 
-# Cinemagoer instance
-ia = Cinemagoer()
+ia = Cinemagoer() # cinemagoer instance
 
-# Caches
+# caches (so that no repeated requests are sent)
 title_cache = {}
 show_cache = {}
 
@@ -218,7 +218,7 @@ def fetch_movie_data(title, verbose=False):
         if not movies:
             return title, None
         
-        # Fetch full movie data
+        # fetch full movie data
         movie = ia.get_movie(movies[0].movieID)
         result = {"title": movie.get("title"), "year": movie.get("year")}
         movie_cache[title] = result
@@ -249,12 +249,12 @@ def rename_movie_files(directory, extensions, dry_run=False, verbose=False, form
         
         files_to_process.append((filename, title, ext))
 
-    # Fetch movie data concurrently
+    # fetch movie data (concurrently)
     titles_to_fetch = list(set([f[1] for f in files_to_process if f[1] not in movie_cache]))
     with ThreadPoolExecutor(max_workers=10) as executor:
         list(executor.map(fetch_movie_data, titles_to_fetch, [verbose] * len(titles_to_fetch)))
 
-    # Rename files sequentially after fetching data
+    # rename files sequentially after fetching data
     for filename, title, ext in files_to_process:
         if title not in movie_cache or not movie_cache[title]:
             print(f"[fail] {filename}: could not find movie data for '{title}'")
@@ -289,7 +289,7 @@ def rename_movie_files(directory, extensions, dry_run=False, verbose=False, form
             os.rename(src, dst)
             print(f"[renamed] {filename} → {new_filename}")
     
-    save_cache(movie_cache) # Save the updated cache to disk
+    save_cache(movie_cache) # save the updated cache to disk
 
 def main():
     parser = argparse.ArgumentParser(
