@@ -89,6 +89,7 @@ shownamer --subst "'" # replaces illegal characters with '
 {season} # season number (as integer)
 {episode} # episode number (as integer)
 {title} # episode title (sanitized for filesystem)
+{year} # year the show first aired
 ```
 
 ```sh
