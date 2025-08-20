@@ -2,14 +2,14 @@ from setuptools import setup, find_packages
 
 setup(
     name="shownamer",
-    version="1.4.0",
+    version="2.0.0",
     author="Amal Lalgi",
     description="Rename TV show Media files with Respective episode Titles/Names.",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
     url="https://github.com/theamallalgi/shownamer",
     packages=find_packages(),
-    install_requires=["requests"],
+    install_requires=["requests", "guessit", "IMDbPY"],
     entry_points={"console_scripts": ["shownamer = shownamer.cli:main"]},
     classifiers=[
         "Programming Language :: Python :: 3",
