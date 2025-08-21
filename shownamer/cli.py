@@ -228,9 +228,14 @@ def fetch_movie_data(title, verbose=False):
             print(f"[fail] Error fetching data for '{title}': {e}")
         return title, None
 
-def rename_movie_files(directory, extensions, dry_run=False, verbose=False, format_str=None, subst=None):
+def gather_movie_files(directory, extensions, verbose=False):
     files_to_process = []
     for filename in os.listdir(directory):
+        full_path = os.path.join(directory, filename)
+        if os.path.isdir(filename):
+            files_to_process += gather_movie_files(full_path, extensions, verbose)
+            continue
+
         name, ext = os.path.splitext(filename)
         if ext.lower() not in extensions:
             continue
@@ -246,9 +251,12 @@ def rename_movie_files(directory, extensions, dry_run=False, verbose=False, form
             if verbose:
                 print(f"[skip] {filename}: no title found")
             continue
-        
-        files_to_process.append((filename, title, ext))
 
+        files_to_process.append((filename, title, ext))
+    return files_to_process
+
+def rename_movie_files(directory, extensions, dry_run=False, verbose=False, format_str=None, subst=None):
+    files_to_process = gather_movie_files(directory, extensions, verbose)
     # fetch movie data (concurrently)
     titles_to_fetch = list(set([f[1] for f in files_to_process if f[1] not in movie_cache]))
     with ThreadPoolExecutor(max_workers=10) as executor:
